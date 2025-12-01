@@ -26,10 +26,14 @@ main().then(() =>{
     console.log("connected to DB");
 })
 .catch((err) => {
-    console.log(err);
+    console.error('DB connection failed:', err);
 });
 async function main() {
-    await mongoose.connect(dbUrl);
+    const devOptions = { tls: true, tlsAllowInvalidCertificates: true, serverSelectionTimeoutMS: 5000 };
+    const prodOptions = { serverSelectionTimeoutMS: 5000 };
+    const options = process.env.NODE_ENV !== 'production' ? devOptions : prodOptions;
+    console.log('Attempting mongoose.connect with options:', options);
+    await mongoose.connect(dbUrl, options);
 };
 
 app.use(express.urlencoded({extended: true}));
@@ -47,8 +51,8 @@ const store = MongoStore.create({
     touchAfter: 24 * 3600,
 });
 
-store.on("error", () => {
-    console.log("Error in MONGO SESSION STORE", err);
+store.on("error", (err) => {
+    console.error("Error in MONGO SESSION STORE", err);
 });
 
 const sessionOptions = {
@@ -89,7 +93,9 @@ app.use((req,res,next) => {
 //     let registeredUser = await User.register(fakeUser,"helloworld");
 //     res.send(registeredUser);
 // });
-
+app.get("/", (req, res) => {
+  res.render("home");
+});
 app.use("/listings", listingRouter);
 app.use("/listings/:id/reviews", reviewRouter);
 app.use("/", userRouter);
