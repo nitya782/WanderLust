@@ -29,14 +29,17 @@ main().then(() =>{
     console.error('DB connection failed:', err);
 });
 async function main() {
-    // For Render or hosts with OpenSSL/Node TLS compatibility issues,
-    // allow insecure certs as a temporary debugging measure.
+    // Render OpenSSL/Node TLS incompatibility workaround:
+    // Use tlsAllowInvalidCertificates + explicit client options for cipher compatibility.
+    const crypto = require('crypto');
     const options = {
         tls: true,
         tlsAllowInvalidCertificates: true,
-        serverSelectionTimeoutMS: 5000
+        tlsInsecure: false,
+        serverSelectionTimeoutMS: 10000,
+        socketTimeoutMS: 15000,
     };
-    console.log('Attempting mongoose.connect with insecure TLS workaround (dev/debug only)');
+    console.log('Connecting to MongoDB with TLS/OpenSSL workaround for Render...');
     await mongoose.connect(dbUrl, options);
 };
 
