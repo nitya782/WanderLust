@@ -27,7 +27,6 @@ async function connectDB() {
     const options = {
         tls: true,
         tlsAllowInvalidCertificates: true,
-        tlsInsecure: false,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 5000,
     };
@@ -119,11 +118,19 @@ app.all(/.*/, (req,res,next) =>{
 });
 
 app.use((err, req, res, next) => {
-  console.error("Error caught in middleware:", err);
+  if (res.headersSent) {
+    console.error("Error after headers sent:", err.message);
+    return next(err);
+  }
+  console.error("Error caught in middleware:", err.message);
   const statusCode = err.statusCode || 500;
   const message = err.message || "Something went wrong";
-  res.status(statusCode).render("error.ejs", {message});
-//   res.status(statusCode).send(message);
+  try {
+    res.status(statusCode).render("error.ejs", {message});
+  } catch (renderErr) {
+    console.error("Render error:", renderErr.message);
+    res.status(statusCode).send(message);
+  }
 });
 
 app.listen(8080, () => {
