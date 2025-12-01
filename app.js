@@ -29,10 +29,14 @@ main().then(() =>{
     console.error('DB connection failed:', err);
 });
 async function main() {
-    const devOptions = { tls: true, tlsAllowInvalidCertificates: true, serverSelectionTimeoutMS: 5000 };
-    const prodOptions = { serverSelectionTimeoutMS: 5000 };
-    const options = process.env.NODE_ENV !== 'production' ? devOptions : prodOptions;
-    console.log('Attempting mongoose.connect with options:', options);
+    // For Render or hosts with OpenSSL/Node TLS compatibility issues,
+    // allow insecure certs as a temporary debugging measure.
+    const options = {
+        tls: true,
+        tlsAllowInvalidCertificates: true,
+        serverSelectionTimeoutMS: 5000
+    };
+    console.log('Attempting mongoose.connect with insecure TLS workaround (dev/debug only)');
     await mongoose.connect(dbUrl, options);
 };
 
