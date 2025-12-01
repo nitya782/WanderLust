@@ -22,26 +22,27 @@ const reviewRouter = require("./routes/review.js");
 const listingRouter = require("./routes/listing.js");
 const userRouter = require("./routes/user.js");
 
-main().then(() =>{
-    console.log("connected to DB");
-})
-.catch((err) => {
-    console.error('DB connection failed:', err);
-});
-async function main() {
-    // Render OpenSSL/Node TLS incompatibility workaround:
-    // Use tlsAllowInvalidCertificates + explicit client options for cipher compatibility.
-    const crypto = require('crypto');
+// Connect to MongoDB with retry logic (don't block app startup on connection failure)
+async function connectDB() {
     const options = {
         tls: true,
         tlsAllowInvalidCertificates: true,
         tlsInsecure: false,
-        serverSelectionTimeoutMS: 10000,
-        socketTimeoutMS: 15000,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 5000,
     };
-    console.log('Connecting to MongoDB with TLS/OpenSSL workaround for Render...');
-    await mongoose.connect(dbUrl, options);
-};
+    try {
+        console.log('Connecting to MongoDB...');
+        await mongoose.connect(dbUrl, options);
+        console.log("connected to DB");
+    } catch (err) {
+        console.error('DB connection failed:', err.message);
+        console.log('Retrying in 5 seconds...');
+        setTimeout(connectDB, 5000);
+    }
+}
+
+connectDB();
 
 app.use(express.urlencoded({extended: true}));
 app.engine('ejs', ejsMate);
@@ -50,17 +51,23 @@ app.set("views", path.join(__dirname,"views"));
 app.use(methodOverride("_method"));
 app.use(express.static(path.join(__dirname,"/public")));
 
-const store = MongoStore.create({
-    mongoUrl : dbUrl,
-    crypto : {
-        secret: process.env.SECRET,
-    },
-    touchAfter: 24 * 3600,
-});
-
-store.on("error", (err) => {
-    console.error("Error in MONGO SESSION STORE", err);
-});
+// Session store with fallback to memory store if MongoDB unavailable
+let store;
+try {
+    store = MongoStore.create({
+        mongoUrl : dbUrl,
+        crypto : {
+            secret: process.env.SECRET,
+        },
+        touchAfter: 24 * 3600,
+    });
+    store.on("error", (err) => {
+        console.error("Error in MONGO SESSION STORE", err);
+    });
+} catch (err) {
+    console.warn("MongoDB session store failed, using memory store:", err.message);
+    store = new (require('express-session').Store)();
+}
 
 const sessionOptions = {
     store,
