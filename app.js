@@ -24,24 +24,17 @@ const userRouter = require("./routes/user.js");
 
 // Connect to MongoDB with retry logic (don't block app startup on connection failure)
 async function connectDB() {
-    const options = {
-        tls: true,
-        tlsAllowInvalidCertificates: true,
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 5000,
-    };
-    try {
-        console.log('Connecting to MongoDB...');
-        await mongoose.connect(dbUrl, options);
-        console.log("connected to DB");
-    } catch (err) {
-        console.error('DB connection failed:', err.message);
-        console.log('Retrying in 5 seconds...');
-        setTimeout(connectDB, 5000);
-    }
+  try {
+    await mongoose.connect(process.env.ATLASDB_URL);
+    console.log("Connected to MongoDB Atlas");
+  } catch (err) {
+    console.error("MongoDB connection failed:", err.message);
+    process.exit(1);
+  }
 }
 
 connectDB();
+
 
 app.use(express.urlencoded({extended: true}));
 app.engine('ejs', ejsMate);
@@ -133,6 +126,8 @@ app.use((err, req, res, next) => {
   }
 });
 
-app.listen(8080, () => {
-    console.log("server is listening to port 8080");
+const PORT = process.env.PORT || 8080;
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
